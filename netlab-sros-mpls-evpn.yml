@@ -1,0 +1,94 @@
+message: |
+  This lab builds a L3 domain with a mix of bridged and routed VLANs across a set of PE/CE routers running
+  EVPN with MPLS transport. All hosts connected to VLANs (h1-h2) should be
+  able to ping each other.
+
+provider: clab
+defaults.device: sros
+
+# plugin: [ evpn-mh ]
+
+# defaults.devices.sros.interface_name_eval: "'1/1/%d' if ifindex<33 else '1/1/c%d/1'"
+
+bgp.as: 29838
+
+vlans:
+  v99:
+    id: 99
+    mode: bridge
+    vrf: tenant
+  v100:
+    id: 100
+    mode: irb
+    vrf: tenant
+
+  v200:
+    id: 200
+    mode: bridge
+    vrf: tenant
+
+  v300:
+    id: 300
+    mode: bridge
+    vrf: tenant
+
+  v400:
+    id: 400
+    mode: bridge
+    vrf: tenant
+
+vrfs:
+  tenant:
+
+evpn:
+  vlans: [ v99,v100,v200,v300,v400 ] # Currently not set automatically
+  vrfs: [ tenant ]
+  transport: mpls
+
+groups:
+  hosts:
+    members: [ h1, h2 ]
+    device: linux
+
+  core:
+    members: [ c1, c2 ]
+    device: sros
+    module: [ ospf, mpls, bgp, evpn, vrf ]
+    clab.type: sr-1 # integrated
+
+  edge:
+    members: [ e1, e2 ]
+    device: sros
+    module: [ bgp, ospf, mpls, vlan, evpn, vrf ]
+    clab.type: ixr-ec
+
+
+nodes: [ c1, c2, e1, e2, h1, h2 ]
+
+addressing:
+  p2p:
+    ipv4: 37.139.137.0/24
+    prefix: 31
+    ipv6: 2a00:a7c0:20::/48  # Becomes /64 on each link
+
+  lan:
+    ipv4: 37.139.142.0/24 # .64 originally
+    prefix: 28
+    ipv6: 2a00:a7c0:1166::/48
+
+links:
+- c1-c2
+- c1-e1
+- c2-e2
+
+- e1:
+    vlan.access: v99
+  h1:
+
+- e2:
+    vlan.access: v99
+  h2:
+
+- c1: # stub interface
+   ipv4: 8.8.8.8/24
+   vrf: tenant
